@@ -9,6 +9,8 @@ from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 from textblob import TextBlob
 from wordcloud import WordCloud
+import seaborn as sns
+import numpy as np
 from nltk.corpus import stopwords
 import plotly.graph_objects as go
 from sklearn.pipeline import Pipeline
@@ -20,10 +22,12 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk import word_tokenize, PorterStemmer, WordNetLemmatizer
-from visualize_plots import show_sentiments, roc_curves, report_classification
-from sklearn.metrics import confusion_matrix, classification_report, plot_confusion_matrix
+from visualize_plots import show_sentiments
+from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV, cross_val_score
-
+from sklearn.metrics import roc_auc_score
+import visualize_plots
+from visualize_plots import get_heatmap, show_sentiments, roc_curves, report_classification, cf_matrix
 
 def perform_train_test_split(df):
     X = df.drop(columns=['sentiment'])
@@ -102,10 +106,10 @@ def getAnalysis(score):
 models = []
 models.append(('logistic_regression', LogisticRegression(solver='liblinear', multi_class='ovr')))
 models.append(('k_neighbours', KNeighborsClassifier()))
-# models.append(('decision_tree', DecisionTreeClassifier()))
+models.append(('decision_tree', DecisionTreeClassifier()))
 models.append(('gaussian_naive_bayes', GaussianNB()))
-# models.append(('support_vector', SVC()))
-# models.append(('random_forest', RandomForestClassifier()))
+models.append(('support_vector', SVC()))
+models.append(('random_forest', RandomForestClassifier()))
 
 param_grid = {
     'transformer': {
@@ -194,9 +198,8 @@ def pipeline_grid_search_evaluation(model_name: str, grid_search_pipeline: GridS
 
 
 def twitter_sentiment_classifier_training():
-    # old: https://www.kaggle.com/saurabhshahane/twitter-sentiment-dataset
     # new: https://www.kaggle.com/kazanova/sentiment140
-    # 0 negative, 4 positive
+    # 0 negative, 1 positive
     data = pd.read_csv("sentimenttweets.csv", encoding='latin-1', usecols=['sentiment', 'text'])
     data = data.dropna()
     data['sentiment'].replace({4: 1}, inplace=True)
@@ -243,38 +246,24 @@ def twitter_sentiment_classifier_training():
                                                           y_test=y_test)
         results.append(pipeline_result)
         print("****************TEST ACCURACY***************")
-        print("SSSS", confusion_matrix(y_test, grid_search_pipeline.predict(X_test)))
-        cf_matrix = confusion_matrix(y_test, grid_search_pipeline.predict(X_test))
-        import seaborn as sns
-        import numpy as np
-        sns.heatmap(cf_matrix / np.sum(cf_matrix), annot=True,
-                    fmt='.2%', cmap='Blues')
+        print("Confusion Matrix", confusion_matrix(y_test, grid_search_pipeline.predict(X_test)))
+        # plot confusion matrix
+        visualize_plots.cf_matrix(y_test, grid_search_pipeline.predict(X_test))
+        # classification report
         print(classification_report(y_test, grid_search_pipeline.predict(X_test)))
         # predict probabilities
         lr_probs = grid_search_pipeline.predict_proba(X_test)
         # keep probabilities for the positive outcome only
         lr_probs = lr_probs[:, 1]
         # calculate scores
-        from sklearn.metrics import roc_curve
-        from sklearn.metrics import roc_auc_score
         ns_auc = roc_auc_score(y_test, ns_probs)
         lr_auc = roc_auc_score(y_test, lr_probs)
         # summarize scores
         print('No Skill: ROC AUC=%.3f' % (ns_auc))
         print('Logistic: ROC AUC=%.3f' % (lr_auc))
-        # calculate roc curves
-        ns_fpr, ns_tpr, _ = roc_curve(y_test, ns_probs, pos_label=4)
-        lr_fpr, lr_tpr, _ = roc_curve(y_test, lr_probs, pos_label=4)
-        # plot the roc curve for the model
-        plt.plot(ns_fpr, ns_tpr, linestyle='--', label='No Skill')
-        plt.plot(lr_fpr, lr_tpr, marker='.', label='Logistic')
-        # axis labels
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        # show the legend
-        plt.legend()
-        # show the plot
-        plt.show()
+        # plot no skill roc curve
+        visualize_plots.roc_curves(y_test, lr_probs)
+
         # Compare Algorithms
     plt.bar(x=names, height=results)
     plt.title('Algorithm Comparison')
