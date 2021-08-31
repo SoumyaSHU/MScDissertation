@@ -85,24 +85,6 @@ def preprocess_tweet_text(tweet):
     filtered_words = [ps.stem(w) for w in filtered_words]
     return " ".join(filtered_words)
 
-
-def getSubjectivity(text):
-    return TextBlob(text).sentiment.subjectivity
-
-
-def getPolarity(text):
-    return TextBlob(text).sentiment.polarity
-
-
-def getAnalysis(score):
-    if score < 0:
-        return 'Negative'
-    elif score == 0:
-        return 'Neutral'
-    else:
-        return 'Positive'
-
-
 models = []
 models.append(('logistic_regression', LogisticRegression(solver='liblinear', multi_class='ovr')))
 models.append(('k_neighbours', KNeighborsClassifier()))
