@@ -4,7 +4,6 @@ import pandas as pd
 import re
 import tweepy
 from wordcloud import WordCloud
-from textblob import TextBlob
 import matplotlib.pyplot as plt
 from nltk import word_tokenize, PorterStemmer, WordNetLemmatizer
 from nltk.corpus import stopwords
@@ -70,23 +69,6 @@ def preprocess_tweet_text(tweet):
     return " ".join(filtered_words)
 
 
-def getSubjectivity(text):
-    return TextBlob(text).sentiment.subjectivity
-
-
-def getPolarity(text):
-    return TextBlob(text).sentiment.polarity
-
-
-def getAnalysis(score):
-    if score < 0:
-        return 'Negative'
-    elif score == 0:
-        return 'Neutral'
-    else:
-        return 'Positive'
-
-
 # start flask
 from flask import Flask, render_template
 import os
@@ -95,15 +77,14 @@ IMAGE_FOLDER = os.path.join('static')
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = IMAGE_FOLDER
 
-
 # render deafult webpage
 @app.route('/')
 def tweet_sentiment_classifier_prediction():
     # Twitter API credentials
-    access_token = "1310941637024141313-GjXOWqYceSJLzo2MBEippBXMQEgNwj"
-    access_token_secret = "Q1ubUCKc8zGzDXOtumKh9gVPBn75VaDBuI0o36EkcGbFJ"
-    consumer_key = "RxiS9SqRWzsq479r28UKtKsBJ"
-    consumer_secret = "hB0Wr7K9iClKPFb6JDQq9lEMbdiE9Ohwedw41JHRVws8AFo4n3"
+    access_token = "ACCESS TOKEN"
+    access_token_secret = "ACCESS TOKEN SECRET"
+    consumer_key = "CONSUMER KEY"
+    consumer_secret = "CONSUMER SECRET"
     # attempt authentication
     authenticate = tweepy.OAuthHandler(consumer_key, consumer_secret)
     # set access token and secret
@@ -123,17 +104,6 @@ def tweet_sentiment_classifier_prediction():
 
     data = pd.read_csv("LiveTweets.csv", usecols=['text'])
     data.text = data['text'].apply(preprocess_tweet_text)
-    Subjectivity = data['text'].apply(getSubjectivity)
-    Polarity = data['text'].apply(getPolarity)
-    Analysis = Polarity.apply(getAnalysis)
-    # Plot the Polarity and Subjectivity
-    fig = plt.figure(figsize=(8, 6))
-    for i in range(0, data.shape[0]):
-        plt.scatter(Polarity, Subjectivity, color='Blue')
-    plt.title('Sentiment Analysis')
-    plt.xlabel('Polarity')
-    plt.ylabel('Subjectivity')
-    plt.savefig('static/polsubj.png', dpi=fig.dpi)
     pipeline = joblib.load('models/logistic_regression.pkl')
     transformed_data = pipeline.predict_proba(data)
     transformed_data = transformed_data[:, 1]
